@@ -1,0 +1,103 @@
+
+<div style="position:relative;width:100%;">
+  <div id="map" style="width:100%;"></div>
+  <div style="margin-top:8px;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--color-text-secondary);flex-wrap:wrap;">
+    <span style="font-size:12px;color:var(--color-text-secondary);margin-right:4px;">Full-scale food waste composting facilities:</span>
+    <span style="display:flex;align-items:center;gap:4px;"><span style="width:14px;height:14px;border-radius:2px;background:#E1F5EE;border:0.5px solid #9FE1CB;display:inline-block;"></span>0–2</span>
+    <span style="display:flex;align-items:center;gap:4px;"><span style="width:14px;height:14px;border-radius:2px;background:#9FE1CB;display:inline-block;"></span>3–5</span>
+    <span style="display:flex;align-items:center;gap:4px;"><span style="width:14px;height:14px;border-radius:2px;background:#5DCAA5;display:inline-block;"></span>6–10</span>
+    <span style="display:flex;align-items:center;gap:4px;"><span style="width:14px;height:14px;border-radius:2px;background:#1D9E75;display:inline-block;"></span>11–20</span>
+    <span style="display:flex;align-items:center;gap:4px;"><span style="width:14px;height:14px;border-radius:2px;background:#0F6E56;display:inline-block;"></span>20+</span>
+    <span style="margin-left:auto;font-size:11px;opacity:0.6;">Source: BioCycle 2023</span>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<script>
+const facilityData = {
+  'California': 35, 'New York': 14, 'Colorado': 13, 'Pennsylvania': 10,
+  'Washington': 9, 'Texas': 9, 'North Carolina': 9, 'Massachusetts': 7,
+  'Oregon': 7, 'Minnesota': 6, 'Michigan': 6, 'Illinois': 6,
+  'Vermont': 5, 'New Jersey': 5, 'Connecticut': 5, 'Florida': 4,
+  'Ohio': 4, 'Virginia': 4, 'Maryland': 3, 'Wisconsin': 3,
+  'Maine': 3, 'Arizona': 3, 'Tennessee': 2, 'Iowa': 2,
+  'Missouri': 2, 'Indiana': 2, 'Georgia': 2, 'Rhode Island': 2,
+  'New Hampshire': 2, 'Kansas': 1, 'Nebraska': 1, 'Utah': 1,
+  'Nevada': 1, 'New Mexico': 1, 'Montana': 1, 'Wyoming': 1,
+  'Idaho': 1, 'South Carolina': 1, 'Kentucky': 1, 'Arkansas': 1,
+  'Alabama': 0, 'Mississippi': 0, 'Louisiana': 0, 'Oklahoma': 0,
+  'North Dakota': 0, 'South Dakota': 0, 'West Virginia': 0,
+  'Alaska': 0, 'Hawaii': 0, 'Delaware': 0
+};
+
+function getColor(v) {
+  if (v >= 20) return '#0F6E56';
+  if (v >= 11) return '#1D9E75';
+  if (v >= 6)  return '#5DCAA5';
+  if (v >= 3)  return '#9FE1CB';
+  return '#E1F5EE';
+}
+
+const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
+const strokeColor = isDark ? 'rgba(255,255,255,0.2)' : '#ffffff';
+const labelColor = isDark ? '#c2c0b6' : '#3d3d3a';
+
+const svg = d3.select('#map').append('svg')
+  .attr('viewBox', '0 0 960 560')
+  .attr('width', '100%');
+
+const tooltip = d3.select('body').append('div')
+  .style('position', 'absolute')
+  .style('background', 'var(--color-background-primary)')
+  .style('border', '0.5px solid var(--color-border-secondary)')
+  .style('border-radius', '6px')
+  .style('padding', '6px 10px')
+  .style('font-size', '12px')
+  .style('color', 'var(--color-text-primary)')
+  .style('pointer-events', 'none')
+  .style('opacity', 0)
+  .style('z-index', 999);
+
+const projection = d3.geoAlbersUsa().scale(1200).translate([480, 280]);
+const path = d3.geoPath(projection);
+
+d3.json('https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json').then(us => {
+  const features = topojson.feature(us, us.objects.states).features;
+
+  const nameMap = {};
+  features.forEach(f => { nameMap[f.id] = f.properties.name; });
+
+  svg.selectAll('path')
+    .data(features)
+    .join('path')
+    .attr('d', path)
+    .attr('fill', d => {
+      const name = d.properties.name;
+      const v = facilityData[name] ?? 0;
+      return getColor(v);
+    })
+    .attr('stroke', strokeColor)
+    .attr('stroke-width', 0.5)
+    .on('mouseover', function(event, d) {
+      const name = d.properties.name;
+      const v = facilityData[name] ?? 0;
+      d3.select(this).attr('stroke-width', 1.5).attr('stroke', '#1D9E75');
+      tooltip.style('opacity', 1)
+        .html(`<strong>${name}</strong><br>${v} facilit${v === 1 ? 'y' : 'ies'}`);
+    })
+    .on('mousemove', function(event) {
+      tooltip.style('left', (event.pageX + 12) + 'px').style('top', (event.pageY - 28) + 'px');
+    })
+    .on('mouseout', function() {
+      d3.select(this).attr('stroke-width', 0.5).attr('stroke', strokeColor);
+      tooltip.style('opacity', 0);
+    });
+
+  svg.append('text')
+    .attr('x', 760).attr('y', 430)
+    .attr('font-size', '11px')
+    .attr('fill', labelColor)
+    .attr('opacity', 0.6)
+    .text('Hover for state details');
+});
+</script>
